@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AXAI representative prediction evidence",
+  "type": "object",
+  "required": ["sample_id", "raw_input", "expected_output", "predicted_output", "explanation_method", "model_hash", "data_hash"],
+  "properties": {
+    "sample_id": {"type": "string"},
+    "raw_input": {"type": "object"},
+    "expected_output": {},
+    "predicted_output": {},
+    "probability": {"type": "number"},
+    "correct": {"type": "boolean"},
+    "explanation_method": {"type": "string"},
+    "explanation": {},
+    "fidelity": {"type": "number"},
+    "model_hash": {"type": "string"},
+    "data_hash": {"type": "string"}
+  }
+}

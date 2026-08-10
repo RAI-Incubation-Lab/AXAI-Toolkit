@@ -60,5 +60,6 @@ The raw minute-level Bitcoin file is intentionally excluded from this repository
 1. Open the [Bitcoin Historical Data Kaggle dataset](https://www.kaggle.com/datasets/mczielinski/bitcoin-historical-data).
 2. Sign in to Kaggle and download the dataset archive.
 3. Extract `btcusd_1-min_data.csv` directly into this `Bitcoin Historical` folder, beside `study.py`.
-4. Run `python -m pip install -r requirements.txt`, then open `xai_workflow.ipynb`.
-5. Keep the downloaded CSV and ZIP local. They are ignored by `.gitignore` and should not be committed to GitHub.
+4. Install the Kaggle command-line client (`python -m pip install kaggle`), configure your Kaggle API token, and run `python download_dataset.py`. The script downloads the archive, verifies the required CSV schema, and prints a SHA-256 hash that students can record in their evidence. Alternatively, place the downloaded CSV manually and run `python download_dataset.py --verify-only`.
+5. Run `python -m pip install -r requirements.txt`, then open `xai_workflow.ipynb`.
+6. Keep the downloaded CSV and ZIP local. They are ignored by `.gitignore` and should not be committed to GitHub.

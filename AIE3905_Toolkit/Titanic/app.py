@@ -5,7 +5,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from titanic_demo import (
-    counterfactual_search,
+    counterfactual_analysis,
     fairness_audit,
     lime_analysis,
     model_feature_importance,
@@ -51,14 +51,15 @@ with st.expander("About this model and dataset", expanded=False):
         """
     )
 
-metric_cols = st.columns(4)
+metric_cols = st.columns(5)
 metric_cols[0].metric("Accuracy", f"{run.metrics['accuracy']:.3f}")
 metric_cols[1].metric("Precision", f"{run.metrics['precision']:.3f}")
 metric_cols[2].metric("Recall", f"{run.metrics['recall']:.3f}")
-metric_cols[3].metric("F1", f"{run.metrics['f1']:.3f}")
+metric_cols[3].metric("ROC-AUC", f"{run.metrics['roc_auc']:.3f}")
+metric_cols[4].metric("Gain over baseline", f"{run.metrics['accuracy_improvement']:+.3f}")
 st.caption(
     "Performance is computed on a stratified 20% test split. Precision and recall are reported "
-    "for the positive class: passenger survived."
+    "for the positive class: passenger survived. Explanations are shown only as an educational diagnostic because this model exceeds the displayed dummy baseline."
 )
 
 input_col, result_col = st.columns([0.95, 1.05])
@@ -104,8 +105,13 @@ with result_col:
         "prediction toward survival. They are useful for auditing decision boundaries, but they "
         "should not be treated as real-world causal advice."
     )
-    counterfactuals = counterfactual_search(run, passenger)
-    st.dataframe(counterfactuals, use_container_width=True, hide_index=True)
+    counterfactuals = counterfactual_analysis(run, passenger)
+    st.write("Feasible target-achieving candidates")
+    st.dataframe(counterfactuals["actionable_counterfactuals"], use_container_width=True, hide_index=True)
+    with st.expander("Protected-attribute sensitivity (non-actionable)"):
+        st.dataframe(counterfactuals["protected_attribute_sensitivity"], use_container_width=True, hide_index=True)
+    with st.expander("Infeasible candidates"):
+        st.dataframe(counterfactuals["infeasible_candidates"], use_container_width=True, hide_index=True)
     st.caption(
         "Sex is included here as a diagnostic sensitive-attribute test, not as an actionable intervention."
     )
@@ -129,6 +135,7 @@ with explainer_col:
     if st.button("Run SHAP plots"):
         try:
             shap_result = shap_analysis(run)
+            st.caption(f"SHAP uses a seeded sample of {shap_result['sample_size']} test records (random state {shap_result['random_state']}).")
             st.image(str(shap_result["summary_path"]), caption="SHAP summary plot")
             st.image(str(shap_result["waterfall_path"]), caption="SHAP waterfall for one passenger")
         except RuntimeError as exc:
@@ -144,6 +151,7 @@ with explainer_col:
         try:
             lime_result = lime_analysis(run)
             st.write(pd.DataFrame(lime_result["weights"], columns=["Feature rule", "Weight"]))
+            st.caption(f"Local surrogate fidelity (R-squared): {lime_result['fidelity']:.3f}")
             components.html(lime_result["html_path"].read_text(encoding="utf-8"), height=520, scrolling=True)
         except RuntimeError as exc:
             st.warning(str(exc))
@@ -168,6 +176,8 @@ with fairness_col:
         f"Demographic parity gap: **{audit['age_demographic_parity_gap']:.3f}**  \n"
         f"Equalized odds gap: **{audit['age_equalized_odds_gap']:.3f}**"
     )
+    for warning in audit["warnings"]:
+        st.warning(warning)
     st.info(
         "In this demo, gender differences are large because the historical labels strongly encode "
         "the evacuation pattern. This makes the dataset useful for teaching fairness diagnostics, "

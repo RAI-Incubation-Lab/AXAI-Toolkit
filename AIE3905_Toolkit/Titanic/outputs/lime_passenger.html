@@ -37089,10 +37089,10 @@
 /***/ })
 /******/ ]);
 //# sourceMappingURL=bundle.js.map </script></head><body>
-        <div class="lime top_div" id="top_divXFLVT38F86KRRY6"></div>
+        <div class="lime top_div" id="top_div9HX9QHQPBZW7HNY"></div>
         
         <script>
-        var top_div = d3.select('#top_divXFLVT38F86KRRY6').classed('lime top_div', true);
+        var top_div = d3.select('#top_div9HX9QHQPBZW7HNY').classed('lime top_div', true);
         
             var pp_div = top_div.append('div')
                                 .classed('lime predict_proba', true);
@@ -37104,10 +37104,10 @@
             var exp = new lime.Explanation(["Did not survive", "Survived"]);
         
                 exp_div = top_div.append('div').classed('lime explanation', true);
-                exp.show([["0.00 < Sex_male <= 1.00", -0.22189928410788662], ["Sex_female <= 0.00", -0.20330231852784475], ["0.00 < Pclass_3 <= 1.00", -0.06586033852649904], ["Pclass_1 <= 0.00", -0.06327990805364495], ["SibSp > 1.00", -0.03623549194724945], ["0.00 < Embarked_S <= 1.00", -0.03229279600229774], ["FamilySize > 2.00", -0.029271237820181213], ["Embarked_C <= 0.00", -0.02872452056093081]], 1, exp_div);
+                exp.show([["Sex=male", -0.37770960858263397], ["Pclass=3", -0.08804510118552747], ["Embarked=S", -0.05146663125849582], ["7.00 < Age <= 24.00", -0.039486778699807074], ["SibSp > 1.00", -0.0374434431394715], ["FamilySize > 2.00", -0.024202901706558408], ["Parch <= 0.00", -0.02060267725590414], ["IsAlone <= 0.00", 0.003785133083095482]], 1, exp_div);
                 
         var raw_div = top_div.append('div');
-            exp.show_raw_tabular([["Sex_male", "1.00", -0.22189928410788662], ["Sex_female", "0.00", -0.20330231852784475], ["Pclass_3", "1.00", -0.06586033852649904], ["Pclass_1", "0.00", -0.06327990805364495], ["SibSp", "2.00", -0.03623549194724945], ["Embarked_S", "1.00", -0.03229279600229774], ["FamilySize", "3.00", -0.029271237820181213], ["Embarked_C", "0.00", -0.02872452056093081]], 1, raw_div);
+            exp.show_raw_tabular([["Sex=male", "True", -0.37770960858263397], ["Pclass=3", "True", -0.08804510118552747], ["Embarked=S", "True", -0.05146663125849582], ["Age", "24.00", -0.039486778699807074], ["SibSp", "2.00", -0.0374434431394715], ["FamilySize", "3.00", -0.024202901706558408], ["Parch", "0.00", -0.02060267725590414], ["IsAlone", "0.00", 0.003785133083095482]], 1, raw_div);
         
         </script>
         </body></html>

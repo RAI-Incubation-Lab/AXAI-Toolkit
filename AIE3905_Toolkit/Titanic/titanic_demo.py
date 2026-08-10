@@ -400,3 +400,7 @@ if __name__ == "__main__":
     audit = fairness_audit(run)
     print(audit["gender_rates"].to_string(index=False))
     print(audit["age_rates"].to_string(index=False))
+
+
+from titanic_quality_extension import apply_titanic_quality_fixes
+apply_titanic_quality_fixes(globals())
