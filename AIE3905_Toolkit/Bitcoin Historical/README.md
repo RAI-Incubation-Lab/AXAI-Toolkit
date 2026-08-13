@@ -38,7 +38,7 @@ The audit is a diagnostic, not proof that the application is fair, unbiased, or 
 
 ## Responsible-Use Note
 
-The local Bitcoin data file is currently missing. After adding it, the application will run; results are educational only and are not financial advice or a trading system.
+A small synthetic fixture is included so the notebook, dashboard, and CI can run from a fresh clone. Download the Kaggle minute-level CSV for the real-data exercise; results are educational only and are not financial advice or a trading system.
 
 ## Suggested Student Exercises
 

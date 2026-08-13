@@ -1,4 +1,23 @@
+"""Synchronize the quality-controlled tabular template into standalone cases.
+
+This maintainer script is not required by any student case after synchronization.
+"""
 from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+CASES = {
+    "FIFA World Cup 2026": {"split": 'group_column="match_id"'},
+    "Chess Game": {"split": 'time_column="created_at"'},
+    "Google Play Store Apps": {"split": 'time_column="updated_year"'},
+    "Medical Cost Personal": {"split": ""},
+    "Students Performance in Exams": {"split": ""},
+    "Video Game Sales": {"split": 'time_column="Year"'},
+}
+
+HEADER = r'''from __future__ import annotations
 
 import hashlib
 import json
@@ -162,44 +181,74 @@ def write_evidence(run: TabularRun, output_dir: str | Path, sample_index: int = 
     row = run.X_test.iloc[sample_index].to_dict(); prediction = run.predictions[sample_index]
     payload = {"sample_id": str(run.X_test.index[sample_index]), "raw_input": row, "expected_output": run.y_test.iloc[sample_index].item(), "predicted_output": prediction.item() if hasattr(prediction, "item") else prediction, "probability": float(run.scores[sample_index]) if run.scores is not None else None, "correct": bool(prediction == run.y_test.iloc[sample_index]), "explanation_method": "random_forest_feature_importance", "explanation": feature_importance(run, 10).to_dict(orient="records"), "model_hash": hashlib.sha256(repr(run.model).encode()).hexdigest()[:12], "data_hash": hashlib.sha256(pd.util.hash_pandas_object(run.X_train, index=True).values.tobytes()).hexdigest()[:12], "split": run.split_description, "validity_gate_passed": run.validity_passed}
     evidence = directory / "representative_evidence.json"; metrics = directory / "metrics.json"; evidence.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8"); metrics.write_text(json.dumps({"metrics": run.metrics, "split": run.split_description, "validity_gate_passed": run.validity_passed}, indent=2), encoding="utf-8"); return evidence, metrics
+'''
 
-
-import sys
-from pathlib import Path
+APP = r'''from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent
-
-TITLE = "FIFA 2026 Player Performance XAI"
-SUBTITLE = "Regression: explain a match-level player performance score"
-LEARNING_GOAL = "Learn how sporting-event statistics, player role, and match context influence a modelled performance score."
-CONTEXT = "The dataset contains match-level player records. This case predicts `performance_score` using event statistics and context, then compares model behavior across playing positions. The score is an observed dataset variable, not an objective measure of football quality."
-LOCAL_INTERPRETATION = "Use the selected record to discuss which match actions may explain the model output. This is a model explanation, not a causal claim that changing one statistic would change a real match result."
-GLOBAL_INTERPRETATION = "Compare offensive, defensive, physical, and contextual variables. A high importance can reflect the dataset's score construction as well as genuine predictive signal."
-AUDIT_TITLE = "Position-group audit"
-AUDIT_EXPLANATION = "Regression MAE is reported by position. Large differences may indicate that the same model fits some roles better than others."
-AUDIT_CAUTION = "Positions have very different responsibilities and feature distributions; this table is a performance diagnostic, not a fairness verdict."
-
-TARGET = "performance_score"
-NUMERIC = ["age", "height_cm", "weight_kg", "market_value_eur", "minutes_played", "goals", "assists", "shots_on_target", "expected_goals_xg", "expected_assists_xa", "pass_accuracy", "successful_passes", "tackles", "interceptions", "saves", "distance_covered_km", "top_speed_kmh", "stamina_score"]
-CATEGORICAL = ["position", "preferred_foot", "tournament_stage", "match_result"]
+from study import feature_importance, group_audit, lime_local_explanation, shap_summary, write_evidence
 
 
-def load_data() -> pd.DataFrame:
-    return pd.read_csv(ROOT / "fifa_world_cup_2026_player_performance.csv")
+def render_tabular_dashboard(study) -> None:
+    import streamlit as st
+    import streamlit.components.v1 as components
+    st.set_page_config(page_title=study.TITLE, layout="wide")
+    @st.cache_resource
+    def get_run(): return study.train()
+    run = get_run(); output_dir = Path(study.__file__).resolve().parent / "outputs"; write_evidence(run, output_dir)
+    st.title(study.TITLE); st.caption(study.SUBTITLE); st.markdown(study.LEARNING_GOAL)
+    with st.expander("Learning context"): st.markdown(study.CONTEXT)
+    st.info(f"Validation: {run.split_description}. Model-validity gate: {'passed' if run.validity_passed else 'not passed'}. Do not base decisions on explanations when the gate is not passed.")
+    cols = st.columns(len(run.metrics)); [column.metric(name.upper().replace('_', ' '), f"{value:.3f}") for column, (name, value) in zip(cols, run.metrics.items())]
+    left, right = st.columns(2)
+    with left:
+        selected = st.selectbox("Test record", range(len(run.X_test))); row = run.X_test.iloc[[selected]]; st.dataframe(row, hide_index=True, use_container_width=True)
+        st.write(f"Ground truth: **{run.y_test.iloc[selected]}**"); st.write(f"Prediction: **{run.predictions[selected]}**")
+        if run.scores is not None: st.write(f"Positive-class probability: **{run.scores[selected]:.3f}**")
+        st.write(f"Correct: **{bool(run.predictions[selected] == run.y_test.iloc[selected])}**"); st.markdown(study.LOCAL_INTERPRETATION)
+    with right: st.dataframe(feature_importance(run), hide_index=True, use_container_width=True); st.markdown(study.GLOBAL_INTERPRETATION)
+    explain, audit = st.columns(2)
+    with explain:
+        if st.button("Generate sampled SHAP summary"):
+            try: st.image(str(shap_summary(run, output_dir / "shap_summary.png")), caption="Seeded sample of at most 200 test records")
+            except RuntimeError as exc: st.warning(str(exc))
+        if st.button("Generate raw-feature LIME explanation"):
+            try:
+                path, weights, fidelity = lime_local_explanation(run, selected, output_dir / "lime_local.html"); st.caption(f"Local surrogate fidelity: {fidelity:.3f}"); st.dataframe(pd.DataFrame(weights, columns=["feature rule", "local weight"]), hide_index=True); components.html(path.read_text(encoding="utf-8"), height=500, scrolling=True)
+            except RuntimeError as exc: st.warning(str(exc))
+    with audit:
+        st.subheader(study.AUDIT_TITLE); st.markdown(study.AUDIT_EXPLANATION); table = group_audit(run, study.audit_groups(run)); st.dataframe(table, hide_index=True, use_container_width=True); st.warning("This is a subgroup diagnostic, not a formal fairness conclusion. Rows marked small_sample_warning require extra caution."); st.info(study.AUDIT_CAUTION)
 
 
-def train() -> TabularRun:
-    return train_tabular(load_data(), target=TARGET, task="regression", numeric_features=NUMERIC, categorical_features=CATEGORICAL, group_column="match_id")
+import study
+render_tabular_dashboard(study)
+'''
 
 
-def audit_groups(run: TabularRun) -> pd.Series:
-    return run.X_test["position"]
+def sync_case(name: str, config: dict[str, str]) -> None:
+    directory = ROOT / name
+    source = directory / "study.py"
+    text = source.read_text(encoding="utf-8")
+    if "def _split(" in text:
+        return
+    markers = ("\n\n\n\nimport sys", "\n\n\nimport re", "\n\n\nimport sys")
+    marker = next((candidate for candidate in markers if candidate in text), None)
+    if marker is None:
+        raise ValueError(f"Could not find domain section in {source}")
+    tail = text[text.index(marker) + (3 if marker == "\n\n\nimport re" else 4):]
+    tail = tail.replace("return train_tabular(load_data(), target=TARGET, task=\"regression\", numeric_features=NUMERIC, categorical_features=CATEGORICAL)", f"return train_tabular(load_data(), target=TARGET, task=\"regression\", numeric_features=NUMERIC, categorical_features=CATEGORICAL, {config['split']})" if config["split"] else "return train_tabular(load_data(), target=TARGET, task=\"regression\", numeric_features=NUMERIC, categorical_features=CATEGORICAL)")
+    tail = tail.replace("return train_tabular(load_data(), target=TARGET, task=\"classification\", numeric_features=NUMERIC, categorical_features=CATEGORICAL)", f"return train_tabular(load_data(), target=TARGET, task=\"classification\", numeric_features=NUMERIC, categorical_features=CATEGORICAL, {config['split']})" if config["split"] else "return train_tabular(load_data(), target=TARGET, task=\"classification\", numeric_features=NUMERIC, categorical_features=CATEGORICAL)")
+    footer = "\n\nif __name__ == \"__main__\":\n    run = train()\n    output = ROOT / \"outputs\"\n    write_evidence(run, output)\n    print(json.dumps({\"metrics\": run.metrics, \"split\": run.split_description, \"validity_gate_passed\": run.validity_passed}, indent=2))\n"
+    source.write_text(HEADER + "\n\n" + tail + footer, encoding="utf-8")
+    (directory / "app.py").write_text(APP, encoding="utf-8")
 
 
-if __name__ == "__main__":
-    run = train()
-    output = ROOT / "outputs"
-    write_evidence(run, output)
-    print(json.dumps({"metrics": run.metrics, "split": run.split_description, "validity_gate_passed": run.validity_passed}, indent=2))
+def main() -> None:
+    parser = argparse.ArgumentParser(); parser.add_argument("--apply", action="store_true"); args = parser.parse_args()
+    if not args.apply:
+        print("Dry run. Use --apply to synchronize standalone tabular cases."); return
+    for name, config in CASES.items(): sync_case(name, config); print(f"Synchronized {name}")
+
+
+if __name__ == "__main__": main()

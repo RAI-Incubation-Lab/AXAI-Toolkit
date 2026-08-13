@@ -1,6 +1,6 @@
 # AIE3905 Explainable AI Toolkit
 
-Each dataset folder is a fully self-contained teaching project. You can send any one dataset folder to students without `shared`, `tools`, or `Case_Studies`.
+Each dataset folder is a standalone teaching project; Bitcoin includes a small synthetic fixture and an optional verified Kaggle download for the full dataset. You can send any one dataset folder to students without `shared`, `tools`, or `Case_Studies`.
 
 Every project folder contains `study.py`, `app.py`, `README.md`, `MODEL_CARD.md`, and `requirements.txt`. Run it from inside that folder:
 

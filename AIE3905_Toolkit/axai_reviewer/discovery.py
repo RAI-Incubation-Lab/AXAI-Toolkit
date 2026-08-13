@@ -30,7 +30,7 @@ def discover_project(project_root: str | Path) -> ProjectInventory:
             inventory.documents.append(path)
         if suffix in DATA_SUFFIXES and "output" not in path.parts:
             inventory.data_files.append(path)
-        if suffix in OUTPUT_SUFFIXES and ("output" in path.parts or "artifact" in path.parts or "report" in path.name.lower()):
+        if suffix in OUTPUT_SUFFIXES and (any(part.startswith("output") for part in path.parts) or "artifact" in path.parts or "report" in path.name.lower()):
             inventory.output_files.append(path)
     return inventory
 

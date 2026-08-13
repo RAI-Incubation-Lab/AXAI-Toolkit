@@ -12,6 +12,6 @@ def check_fairness(code: str, documentation: str) -> list[Finding]:
     metrics = sum(term in text for term in ("true_positive_rate", "false_positive_rate", "precision", "recall", "selection_rate"))
     if metrics < 3:
         findings.append(Finding("fairness", "medium", "Fairness evidence is narrow", "Selection rate or accuracy alone cannot support a fairness conclusion.", recommendation="Report subgroup size, TPR, FPR, precision/recall, disparity ratios, and label the result as diagnostic."))
-    if "confidence interval" not in text and "bootstrap" not in text:
+    if "confidence interval" not in text and "bootstrap" not in text and "def _ci" not in text:
         findings.append(Finding("fairness", "low", "Uncertainty is not reported", "Small groups can produce unstable subgroup metrics.", recommendation="Add a minimum group-size warning and bootstrap confidence intervals where a group analysis is shown."))
     return findings

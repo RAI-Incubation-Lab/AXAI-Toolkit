@@ -1,4 +1,4 @@
-# Student Guide: XAI Project 鈥?Evaluate Your AI Solution
+# Student Guide: XAI Project 閳?Evaluate Your AI Solution
 
 > **What this is:** Your step-by-step guide to use the Explainable AI toolkit
 > **GitHub Repo:** `github.com/RAI-Incubation-Lab/AXAI-Toolkit`
@@ -7,9 +7,9 @@
 
 ## What You're Building
 
-Your team has built (or chosen) an **AI solution** 鈥?maybe it's a classifier you trained, a ChatGPT API integration, a Claude-powered tool, or a no-code AI platform. This project asks you to **evaluate its explainability**: can you show why it made a specific decision, whether it's fair, and what would need to change to get a different result?
+Your team has built (or chosen) an **AI solution** 閳?maybe it's a classifier you trained, a ChatGPT API integration, a Claude-powered tool, or a no-code AI platform. This project asks you to **evaluate its explainability**: can you show why it made a specific decision, whether it's fair, and what would need to change to get a different result?
 
-You produce an **XAI Report Card** 鈥?a document that scores and explains how interpretable, fair, and auditable your AI solution is. Think of it like a nutrition label, but for AI.
+You produce an **XAI Report Card** 閳?a document that scores and explains how interpretable, fair, and auditable your AI solution is. Think of it like a nutrition label, but for AI.
 
 **Key idea:** You don't need to have trained the model yourself. You need to understand and explain whatever AI is driving your solution.
 
@@ -25,7 +25,7 @@ Download `templates/AXAI_Master_Template.ipynb` from the repo. Open it in whatev
 - **Local Jupyter:** `jupyter notebook AXAI_Master_Template.ipynb`
 - **Baidu AI Studio:** Upload and open
 
-Run Cell 1 (Master Import Cell) first 鈥?it installs all required libraries (~2 minutes).
+Run Cell 1 (Master Import Cell) first 閳?it installs all required libraries (~2 minutes).
 
 ### Clone the Demo
 
@@ -55,7 +55,7 @@ In your Model Card and README, answer:
 - **Why did you choose them?** (accuracy, cost, speed, availability, ease of use)
 - **What alternatives did you consider?** (Why GPT-4 over Claude? Why RandomForest over XGBoost?)
 - **Who are the end users?** Who benefits? Who could be harmed by wrong answers?
-- **Project context:** How does your AI solution's explainability approach account for regional framework baselines 鈥?such as GBA cross-border data policies, or regional healthcare governance and privacy structures?
+- **Project context:** How does your AI solution's explainability approach account for regional framework baselines 閳?such as GBA cross-border data policies, or regional healthcare governance and privacy structures?
 
 This isn't about whether your tool is the "best." It's about whether you can **explain and justify** your choices in the context where the solution would actually be deployed.
 
@@ -66,11 +66,11 @@ This isn't about whether your tool is the "best." It's about whether you can **e
 ### Cell 3: Load Your Test Data
 
 ```python
-user_dataset = pd.read_csv("your_data.csv")    # 鈫?change this
-target_column = "your_target_column"            # 鈫?change this
+user_dataset = pd.read_csv("your_data.csv")    # 閳?change this
+target_column = "your_target_column"            # 閳?change this
 ```
 
-Load whatever data your solution processes. It can be anything tabular 鈥?customer records, student submissions, patient data.
+Load whatever data your solution processes. It can be anything tabular 閳?customer records, student submissions, patient data.
 
 ### Cell 4: Get Predictions from Your Solution
 
@@ -95,14 +95,14 @@ def call_ai_api(row):
 
 predictions = X.apply(call_ai_api, axis=1)
 ```
-Write a function that sends each data row to your API and returns the result. SHAP and LIME will automatically fall back to `KernelExplainer` (slower but universal 鈥?it works by perturbing inputs and observing outputs).
+Write a function that sends each data row to your API and returns the result. SHAP and LIME will automatically fall back to `KernelExplainer` (slower but universal 閳?it works by perturbing inputs and observing outputs).
 
 **PATH C: You use a no-code tool**
 ```python
 # Export predictions from your tool as CSV, then load:
 predictions = pd.read_csv("predictions.csv")["predicted_column"]
 ```
-If your tool doesn't have an API, run your data through it separately, export the predictions, and load them here. Explainability analysis still works 鈥?it just won't have access to prediction probabilities.
+A static prediction table is a non-queryable black box. It can support descriptive error analysis only; it cannot support recomputed SHAP/LIME, local-fidelity validation, or genuine counterfactual search. Label these capabilities as unavailable unless the tool exposes a stable prediction API.
 
 ---
 
@@ -111,17 +111,17 @@ If your tool doesn't have an API, run your data through it separately, export th
 After running Cells 5-9, you'll get:
 
 ### SHAP Output (Cell 5)
-- **Summary plot** 鈥?which input features drive predictions overall
-- **Waterfall plot** 鈥?why one specific decision was made
+- **Summary plot** 閳?which input features drive predictions overall
+- **Waterfall plot** 閳?why one specific decision was made
 - Works with any solution type (auto-falls back to KernelExplainer for APIs)
 
 ### LIME Output (Cell 6)
-- **Local explanation** 鈥?what features drove one individual decision
+- **Local explanation** 閳?what features drove one individual decision
 - Shows the top 5 features and how they pushed the prediction
 
 ### Fairness Audit (Cell 7)
-- **Demographic Parity** 鈥?does the solution treat groups equally?
-- **Equalized Odds** 鈥?are error rates similar across groups?
+- **Demographic Parity** 閳?does the solution treat groups equally?
+- **Equalized Odds** 閳?are error rates similar across groups?
 - You need to identify at least one sensitive attribute (gender, age, region, etc.)
 
 ### Counterfactual Examples (Cell 8)
@@ -141,10 +141,10 @@ After running Cells 5-9, you'll get:
 Build a Streamlit or Gradio app so a non-technical person can interact with your solution and see explanations.
 
 ### Your dashboard must show:
-1. **Input form** 鈥?user enters data, gets a prediction
-2. **SHAP explanation** 鈥?why that prediction (waterfall or force plot)
-3. **Counterfactual demo** 鈥?"what would need to change?"
-4. **Model Card viewer** 鈥?display the full report
+1. **Input form** 閳?user enters data, gets a prediction
+2. **SHAP explanation** 閳?why that prediction (waterfall or force plot)
+3. **Counterfactual demo** 閳?"what would need to change?"
+4. **Model Card viewer** 閳?display the full report
 
 ### Minimal Streamlit App (`app.py`)
 
@@ -152,7 +152,7 @@ Build a Streamlit or Gradio app so a non-technical person can interact with your
 import streamlit as st
 import shap
 
-st.title("XAI Report Card 鈥?[Your Project]")
+st.title("XAI Report Card 閳?[Your Project]")
 
 # Input form
 st.header("Make a Prediction")
@@ -189,7 +189,7 @@ Review the auto-generated Model Card (Cell 9 output). Complete all sections:
 - [ ] Tech choices are justified (why this API/model over alternatives)
 - [ ] Top features from SHAP are listed and explained
 - [ ] Counterfactual examples are meaningful and documented
-- [ ] Fairness results are discussed (even if bias was found 鈥?that's OK)
+- [ ] Fairness results are discussed (even if bias was found 閳?that's OK)
 - [ ] Known limitations are honestly listed
 - [ ] Stakeholder notes are filled in
 
@@ -201,12 +201,12 @@ Review the auto-generated Model Card (Cell 9 output). Complete all sections:
 
 ```
 [your-project-folder]/
-鈹溾攢鈹€ your-project.ipynb          # Your completed Colab notebook
-鈹溾攢鈹€ MODEL_CARD.md               # Your completed Model Card
-鈹溾攢鈹€ app.py                      # Your Streamlit dashboard
-鈹溾攢鈹€ README.md                   # How to reproduce your solution
-鈹溾攢鈹€ demo.mp4                    # 2-minute screen recording
-鈹斺攢鈹€ requirements.txt            # pip requirements
+閳规壕鏀㈤埞鈧?your-project.ipynb          # Your completed Colab notebook
+閳规壕鏀㈤埞鈧?MODEL_CARD.md               # Your completed Model Card
+閳规壕鏀㈤埞鈧?app.py                      # Your Streamlit dashboard
+閳规壕鏀㈤埞鈧?README.md                   # How to reproduce your solution
+閳规壕鏀㈤埞鈧?demo.mp4                    # 2-minute screen recording
+閳规柡鏀㈤埞鈧?requirements.txt            # pip requirements
 ```
 
 ### How to Submit
@@ -277,20 +277,20 @@ Full checklist: See `templates/checklist_template.md` in the repo.
 
 ## FAQ
 
-**"I didn't train a model 鈥?I just used ChatGPT API. Can I still do this?"**
-Yes. Use PATH B in Cell 4 to call the API. SHAP/LIME will use KernelExplainer (it perturbs inputs and watches outputs 鈥?works with any black box). The explanation will be slower but still meaningful.
+**"I didn't train a model 閳?I just used ChatGPT API. Can I still do this?"**
+Yes. Use PATH B in Cell 4 to call the API. SHAP/LIME will use KernelExplainer (it perturbs inputs and watches outputs 閳?works with any black box). The explanation will be slower but still meaningful.
 
 **"My no-code tool doesn't have an API."**
 Use PATH C. Export predictions as CSV and load them. You won't get prediction probabilities, but you'll still get feature importance and counterfactuals.
 
-**"SHAP/LIME don't make sense for my solution type 鈥?what do I do?"**
+**"SHAP/LIME don't make sense for my solution type 閳?what do I do?"**
 That's a valid finding. Document why they don't apply and what explainability method would be more appropriate. This is part of the grading criteria (tech choice justification).
 
-**"My fairness audit shows bias 鈥?is that bad?"**
+**"My fairness audit shows bias 閳?is that bad?"**
 No. Finding bias is a valid result. Document it, explain why it exists, propose mitigations. That's exactly what the project is testing.
 
 **"My Streamlit app works locally but not when I push it."**
-Check `requirements.txt` 鈥?make sure all dependencies are listed.
+Check `requirements.txt` 閳?make sure all dependencies are listed.
 
 **"Can I use any dataset?"**
 Yes. Any tabular dataset with a clear target variable works.

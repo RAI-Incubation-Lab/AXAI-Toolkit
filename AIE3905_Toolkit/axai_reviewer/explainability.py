@@ -12,7 +12,7 @@ def check_explainability(code: str, documentation: str) -> list[Finding]:
         findings.append(Finding("explainability", "high", "No explanation method found", "The project does not show how a prediction is explained.", recommendation="Add global and local explanation evidence appropriate to the model and task."))
     if "predictions.csv" in text and "predict_fn" not in text and "pipeline.predict" not in text:
         findings.append(Finding("explainability", "high", "Static predictions appear non-queryable", "A table of fixed predictions cannot support perturbed-input explanations or counterfactual search.", recommendation="Expose a stable predict_fn or label this as a non-queryable black box with limited explanation claims."))
-    if "lime" in text and "encoded_frame" in text:
+    if "lime" in text and "train_encoded" in text:
         findings.append(Finding("explainability", "high", "LIME may perturb encoded categories", "One-hot features can form invalid combinations when perturbed independently.", recommendation="Run LIME in the original feature space, call the complete pipeline, declare categorical values, and record local fidelity."))
     if "lime" in text and "score" not in text:
         findings.append(Finding("explainability", "medium", "LIME fidelity is not recorded", "A local surrogate explanation is not interpretable without its fit quality.", recommendation="Save explanation.score and reject or flag low-fidelity explanations."))
