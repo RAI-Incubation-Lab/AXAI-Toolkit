@@ -1,0 +1,19 @@
+# AXAI Toolkit 核心依赖
+numpy>=1.23
+scipy>=1.9
+scikit-learn>=1.1
+pandas>=1.5
+matplotlib>=3.6
+Pillow>=9.0
+streamlit>=1.20
+typer>=0.9
+rich>=13.0
+pydantic>=2.0
+pytest>=7.0
+
+# 深度学习解释示例（可选，CPU 版即可）
+# torch>=1.13
+# torchvision>=0.14
+
+# 可选：Agent 图分析
+# networkx>=3.0

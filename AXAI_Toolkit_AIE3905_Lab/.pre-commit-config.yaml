@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: axai-scan
+        name: AXAI static scan
+        entry: axai scan
+        language: system
+        types: [text]
+        pass_filenames: false

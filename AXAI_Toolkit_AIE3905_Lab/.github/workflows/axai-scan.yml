@@ -1,0 +1,27 @@
+name: AXAI Scan
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  axai-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install AXAI Toolkit
+        run: |
+          pip install -r requirements.txt
+          pip install -e .
+      - name: Run AXAI scan
+        run: |
+          axai scan . --export-html axai-report.html
+      - name: Upload AXAI report
+        uses: actions/upload-artifact@v4
+        with:
+          name: axai-report
+          path: axai-report.html
