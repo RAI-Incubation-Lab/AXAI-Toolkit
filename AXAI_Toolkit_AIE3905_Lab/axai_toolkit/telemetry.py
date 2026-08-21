@@ -10,7 +10,8 @@ import platform
 import uuid
 from pathlib import Path
 
-_CFG_PATH = Path(__file__).resolve().parent / ".telemetry_config"
+_CFG_DIR = Path.home() / ".axai"
+_CFG_PATH = _CFG_DIR / "telemetry_config"
 
 
 def _machine_hash() -> str:
@@ -28,11 +29,13 @@ def is_enabled() -> bool:
 
 def disable() -> None:
     """显式关闭遥测。"""
+    _CFG_DIR.mkdir(parents=True, exist_ok=True)
     _CFG_PATH.write_text("disabled", encoding="utf-8")
 
 
 def enable() -> None:
     """显式开启遥测（默认不推荐开启）。"""
+    _CFG_DIR.mkdir(parents=True, exist_ok=True)
     _CFG_PATH.write_text("enabled", encoding="utf-8")
 
 

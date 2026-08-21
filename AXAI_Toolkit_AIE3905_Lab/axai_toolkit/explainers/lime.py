@@ -48,13 +48,15 @@ class LimeTabularExplainer:
         self.stds = self.training_data.std(axis=0) + 1e-8
 
     def _predict_proba(self, model, X: np.ndarray) -> np.ndarray:
-        """返回二分类正类概率；对回归返回预测值。"""
+        """返回二分类正类概率；多分类返回预测类别的概率；对回归返回预测值。"""
         X = np.asarray(X, dtype=float)
         if hasattr(model, "predict_proba"):
             proba = model.predict_proba(X)
-            if proba.ndim == 2 and proba.shape[1] == 2:
-                return proba[:, 1]
-            return proba[:, -1]  # 教学场景通常取最后一个类别
+            if proba.ndim == 2:
+                if proba.shape[1] == 2:
+                    return proba[:, 1]
+                return proba.max(axis=1)
+            return proba
         return model.predict(X)
 
     def explain_instance(

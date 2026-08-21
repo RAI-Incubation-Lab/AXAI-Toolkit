@@ -7,14 +7,17 @@ from typing import Callable, Optional
 
 import numpy as np
 
+# 支持中文连续片段、英文单词（长度 >= 2）与数字/下划线组合
+TOKEN_PATTERN = re.compile(r"[\u4e00-\u9fff]+|[a-zA-Z0-9_]{2,}")
+
 
 def simple_entailment(claim: str, evidence: str) -> float:
     """基于词重叠的简化蕴含分。
 
     真实场景可替换为模型蕴含分类器或向量语义相似度。
     """
-    claim_terms = set(re.findall(r"[a-z0-9_]{3,}", claim.lower()))
-    evidence_terms = set(re.findall(r"[a-z0-9_]{3,}", evidence.lower()))
+    claim_terms = set(TOKEN_PATTERN.findall(claim.lower()))
+    evidence_terms = set(TOKEN_PATTERN.findall(evidence.lower()))
     if not claim_terms:
         return 0.0
     overlap = len(claim_terms & evidence_terms)

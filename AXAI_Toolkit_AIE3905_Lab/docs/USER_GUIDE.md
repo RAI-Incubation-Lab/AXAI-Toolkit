@@ -2,12 +2,14 @@
 
 本文档整合了学生使用指引、课堂教学安排、综合项目与评分建议，适用于学生、助教和授课教师。
 
+> 快速导航：环境准备 → 快速开始 → CLI 使用 → Python 示例 → 课堂安排 → 综合项目 → 常见问题
+
 ## 1. 环境准备
 
 默认学生已安装 Anaconda。请先按 `INSTALL.md` 完成环境配置：
 
 ```bash
-cd /d D:\FILE\CUHKSZ\project\Marcus\XAI\AXAI_Toolkit
+cd /d D:\FILE\CUHKSZ\project\Marcus\XAI\AXAI_Toolkit_AIE3905_Lab
 conda create -n axai python=3.11 -y
 conda activate axai
 pip install -r requirements.txt
@@ -55,7 +57,7 @@ streamlit run examples/app.py
 # 扫描项目或 Prompt
 axai scan . --export-html report.html --export-json report.json
 
-# 动态测试占位命令
+# 动态测试：加载你的 agent 函数并自动运行探针
 axai test --entry agent.py:run_agent --suite xai,safety,bias --export-html audit.html
 
 # Prompt 加固
@@ -154,7 +156,7 @@ def my_agent(user_prompt: str):
 
 ### 8.1 找不到 `axai_toolkit`
 
-确保在 `AXAI_Toolkit` 根目录运行，并已执行：
+确保在 `AXAI_Toolkit_AIE3905_Lab` 根目录运行，并已执行：
 
 ```bash
 pip install -e .

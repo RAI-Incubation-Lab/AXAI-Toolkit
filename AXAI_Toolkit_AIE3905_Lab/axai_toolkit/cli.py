@@ -3,12 +3,13 @@
 
 支持：
 - axai scan <path>            静态扫描 Prompt/PII/偏见风险
-- axai test --entry <file>    动态测试占位命令
+- axai test --entry <file>    动态加载并测试用户 Agent 函数
 - axai fix --prompt-file <f>  生成并应用 Prompt 加固补丁
 - axai telemetry <status|enable|disable>
 """
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 from typing import Optional
@@ -19,7 +20,13 @@ from rich.table import Table
 
 from . import telemetry as telemetry_module
 from .rai.ast_linter import lint_python_file
-from .rai.probes import run_static_prompt_scan
+from .rai.probes import (
+    BIAS_PROBES,
+    JAILBREAK_PROBES,
+    PII_INJECTION_PROBES,
+    run_dynamic_probe,
+    run_static_prompt_scan,
+)
 from .remediation.prompt_patch import apply_prompt_patch, generate_prompt_patch
 
 app = typer.Typer(help="AXAI-Toolkit: AI transparency, safety and compliance scanner.")
@@ -37,6 +44,20 @@ def _iter_text_files(path: Path):
             yield p
 
 
+def _load_entry_function(entry_str: str):
+    """从 'path/to/module.py:function_name' 动态加载用户函数。"""
+    path_part, func_name = entry_str.split(":", 1)
+    file_path = Path(path_part).resolve()
+    if not file_path.exists():
+        raise FileNotFoundError(f"Entry file not found: {file_path}")
+    spec = importlib.util.spec_from_file_location("axai_user_module", file_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load module from: {file_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return getattr(module, func_name)
+
+
 @app.command()
 def scan(
     path: str = typer.Argument(".", help="要扫描的文件或目录"),
@@ -52,12 +73,18 @@ def scan(
     findings = []
     total_score = 100.0
     ast_count = 0
+    total_pii_count = 0
+    total_bias_count = 0
+    files_scanned = 0
     for file in _iter_text_files(target):
+        files_scanned += 1
         try:
             text = file.read_text(encoding="utf-8", errors="ignore")
         except Exception:
             continue
         result = run_static_prompt_scan(text)
+        total_pii_count += len(result["pii"])
+        total_bias_count += len(result["bias"])
         if result["score"] < 100:
             findings.append(
                 {
@@ -85,7 +112,7 @@ def scan(
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
     table.add_row("Scanned path", str(target))
-    table.add_row("Files scanned", str(len(list(_iter_text_files(target)))))
+    table.add_row("Files scanned", str(files_scanned))
     table.add_row("Findings", str(len(findings)))
     table.add_row("Score", f"{total_score:.1f}/100")
     console.print(table)
@@ -104,8 +131,8 @@ def scan(
             findings=findings,
             scores={
                 "Security": max(0, total_score),
-                "PII": max(0, 100 - 10 * sum(len(run_static_prompt_scan(p.read_text(encoding='utf-8', errors='ignore'))['pii']) for p in _iter_text_files(target) if p.suffix.lower() in TEXT_SUFFIXES)),
-                "Bias": max(0, 100 - 10 * sum(len(run_static_prompt_scan(p.read_text(encoding='utf-8', errors='ignore'))['bias']) for p in _iter_text_files(target) if p.suffix.lower() in TEXT_SUFFIXES)),
+                "PII": max(0, 100 - 10 * total_pii_count),
+                "Bias": max(0, 100 - 10 * total_bias_count),
                 "AST": max(0, 100 - 10 * ast_count),
                 "Prompt": max(0, total_score),
                 "Overall": max(0, total_score),
@@ -123,8 +150,8 @@ def scan(
             findings=findings,
             scores={
                 "Security": max(0, total_score),
-                "PII": max(0, 100 - 10 * sum(len(run_static_prompt_scan(p.read_text(encoding='utf-8', errors='ignore'))['pii']) for p in _iter_text_files(target) if p.suffix.lower() in TEXT_SUFFIXES)),
-                "Bias": max(0, 100 - 10 * sum(len(run_static_prompt_scan(p.read_text(encoding='utf-8', errors='ignore'))['bias']) for p in _iter_text_files(target) if p.suffix.lower() in TEXT_SUFFIXES)),
+                "PII": max(0, 100 - 10 * total_pii_count),
+                "Bias": max(0, 100 - 10 * total_bias_count),
                 "AST": max(0, 100 - 10 * ast_count),
                 "Prompt": max(0, total_score),
                 "Overall": max(0, total_score),
@@ -140,10 +167,41 @@ def test(
     suite: str = typer.Option("xai,safety,bias", "--suite", help="测试套件，逗号分隔"),
     export_html: Optional[str] = typer.Option(None, "--export-html", help="导出 HTML 报告路径"),
 ):
-    """对 Agent/Prompt 入口执行自动化 XAI 与安全红队测试（教学占位实现）。"""
+    """对 Agent/Prompt 入口执行自动化 XAI 与安全红队测试。"""
     console.print(f"[cyan]Test entry:[/cyan] {entry}")
     console.print(f"[cyan]Suite:[/cyan] {suite}")
-    console.print("[yellow]该命令为教学版占位实现；接入真实模型后会自动执行越狱/偏见/PII 探针。[/yellow]")
+
+    try:
+        func = _load_entry_function(entry)
+    except Exception as exc:
+        console.print(f"[red]无法加载入口函数: {exc}[/red]")
+        raise typer.Exit(1)
+
+    probes = []
+    suite_names = {item.strip().lower() for item in suite.split(",")}
+    if not suite_names or "" in suite_names or "xai" in suite_names or "safety" in suite_names:
+        probes.extend(JAILBREAK_PROBES)
+    if "bias" in suite_names:
+        probes.extend(BIAS_PROBES)
+    if "pii" in suite_names:
+        probes.extend(PII_INJECTION_PROBES)
+
+    results = run_dynamic_probe(func, probes=probes or None)
+    findings = [
+        {
+            "type": item["category"],
+            "detail": f"{item['id']}: prompt={item['prompt'][:60]!r} risky={item['risky']}",
+        }
+        for item in results
+    ]
+    risky_count = sum(1 for item in results if item["risky"])
+    safety_score = max(0, 100 - 20 * risky_count)
+
+    console.print(f"[bold]Dynamic test finished:[/bold] {len(results)} probes, {risky_count} risky.")
+    if findings:
+        console.print("[yellow]Findings:[/yellow]")
+        for item in findings:
+            console.print(f"  - {item['detail']}")
 
     if export_html:
         from .reporting.html_report import export_html_report, generate_html_report
@@ -151,8 +209,8 @@ def test(
         report = generate_html_report(
             title="AXAI Dynamic Test Report",
             summary=f"Entry: {entry}, Suite: {suite}",
-            findings=[{"type": "placeholder", "detail": "真实模型探针待接入"}],
-            scores={"Safety": 80, "XAI": 70, "Bias": 75},
+            findings=findings,
+            scores={"Safety": safety_score, "XAI": safety_score, "Bias": safety_score},
         )
         out = export_html_report(report, export_html)
         console.print(f"[green]HTML report saved: {out}[/green]")

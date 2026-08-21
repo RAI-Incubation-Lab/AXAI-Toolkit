@@ -14,7 +14,7 @@
 ### 1. 进入工具箱目录
 
 ```bash
-cd D:\FILE\CUHKSZ\project\Marcus\XAI\AXAI_Toolkit
+cd D:\FILE\CUHKSZ\project\Marcus\XAI\AXAI_Toolkit_AIE3905_Lab
 ```
 
 ### 2. 创建 conda 环境（强烈推荐）
@@ -78,7 +78,7 @@ python -m axai_toolkit.cli --help
 
 ## 运行示例
 
-在 `AXAI_Toolkit` 根目录下运行：
+在 `AXAI_Toolkit_AIE3905_Lab` 根目录下运行：
 
 ```bash
 python examples/01_intro.py

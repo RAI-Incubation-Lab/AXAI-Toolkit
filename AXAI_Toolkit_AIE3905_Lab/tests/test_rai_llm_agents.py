@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pytest
 
-from axai_toolkit.agents.audit import audit_tool_permissions
+from axai_toolkit.agents.audit import audit_tool_permissions, detect_privilege_escalation
 from axai_toolkit.agents.traceability import (
     AgentStep,
     AgentTrace,
@@ -125,3 +125,19 @@ def test_policy_suite():
     )
     assert result["compliance_score"] == 50.0
     assert len(result["failed"]) == 2
+
+
+def test_cjk_grounding_support():
+    claims = ["公司收入增长百分之二十。"]
+    evidence = ["公司收入增长百分之二十。"]
+    result = grounding_ratio(claims, evidence, threshold=0.1)
+    assert result["grounding_ratio"] > 0.5
+
+
+def test_authorized_high_risk_tool_not_violation():
+    trace = AgentTrace()
+    trace.add_step(AgentStep("s1", action="write_file", parent=None))
+    violations = detect_privilege_escalation(
+        trace, allowed_tools={"write_file", "search"}
+    )
+    assert violations == []

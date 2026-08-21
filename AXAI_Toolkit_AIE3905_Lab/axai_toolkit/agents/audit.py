@@ -29,9 +29,9 @@ def detect_privilege_escalation(
 
     violations = []
     for step in trace.steps:
-        if step.action in HIGH_RISK_TOOLS or (
-            step.action and step.action not in allowed_tools
-        ):
+        is_unauthorized = bool(step.action and step.action not in allowed_tools)
+        is_high_risk = bool(step.action in HIGH_RISK_TOOLS)
+        if is_unauthorized or (is_high_risk and step.action not in allowed_tools):
             violations.append(
                 {
                     "step_id": step.step_id,

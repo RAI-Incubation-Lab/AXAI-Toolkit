@@ -12,6 +12,9 @@ from typing import Callable, Optional
 
 import numpy as np
 
+# 支持中文连续片段、英文单词（长度 >= 2）与数字/下划线组合
+TOKEN_PATTERN = re.compile(r"[\u4e00-\u9fff]+|[a-zA-Z0-9_]{2,}")
+
 
 def counterfactual_mutation(
     original_prompt: str,
@@ -70,13 +73,13 @@ def evaluate_cot_faithfulness(
     coverage = 0.0
     if evidence_text:
         # 检查证据中的词是否在推理步骤中出现（简化）
-        key_terms = set(re.findall(r"[a-z0-9_]{3,}", evidence_text))
+        key_terms = set(TOKEN_PATTERN.findall(evidence_text))
         matched = sum(1 for term in key_terms if term in all_text)
         coverage = matched / max(1, len(key_terms))
 
     # 简化一致性：最终答案中的词是否出现在推理步骤中
-    answer_terms = set(re.findall(r"[a-z0-9_]{3,}", final_answer.lower()))
-    step_terms = set(re.findall(r"[a-z0-9_]{3,}", all_text))
+    answer_terms = set(TOKEN_PATTERN.findall(final_answer.lower()))
+    step_terms = set(TOKEN_PATTERN.findall(all_text))
     overlap = len(answer_terms & step_terms)
     consistency = overlap / max(1, len(answer_terms))
 

@@ -5,7 +5,7 @@
 ## 1. 项目结构
 
 ```text
-AXAI_Toolkit/
+AXAI_Toolkit_AIE3905_Lab/
 ├── README.md
 ├── pyproject.toml
 ├── requirements.txt
@@ -38,7 +38,7 @@ AXAI_Toolkit/
 ## 2. 开发环境准备
 
 ```bash
-cd /d D:\FILE\CUHKSZ\project\Marcus\XAI\AXAI_Toolkit
+cd /d D:\FILE\CUHKSZ\project\Marcus\XAI\AXAI_Toolkit_AIE3905_Lab
 conda create -n axai python=3.11 -y
 conda activate axai
 pip install -r requirements.txt
@@ -157,6 +157,12 @@ from axai_toolkit.benchmarks import list_benchmarks, get_benchmark
 - Policy Suites
 - GitHub Actions / pre-commit
 - 构建者与学生文档整合
+- BUG-01：`axai scan` 改为单次遍历，消除重复读盘
+- BUG-02：`axai test` 改为动态加载用户 Agent 函数并运行真实探针
+- BUG-03：Agent 高危工具授权判断逻辑修正
+- BUG-04：Grounding / CoT 支持中文与短词
+- BUG-05：Telemetry 配置写入用户目录而非 site-packages
+- BUG-06：LIME 多分类改为使用预测类概率
 
 ### 待后续迭代
 

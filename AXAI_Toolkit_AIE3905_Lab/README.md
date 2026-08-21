@@ -54,7 +54,7 @@ AXAI-Toolkit 旨在帮助学生和开发者理解：
 
 ```bash
 # 进入工具箱目录
-cd AXAI_Toolkit
+cd AXAI_Toolkit_AIE3905_Lab
 
 # 创建 conda 环境（建议 Python 3.11）
 conda create -n axai python=3.11 -y
@@ -80,7 +80,7 @@ pip install -e .
 # 1. 对 AI 项目 / Prompt 文件目录执行静态扫描
 axai scan ./my_student_project/ --export-html report.html --export-json report.json
 
-# 2. 动态红队测试（教学占位实现，可接入真实模型）
+# 2. 动态测试：加载你的 agent 函数并运行探针
 axai test --entry agent.py:run_agent --suite xai,safety,bias --export-html audit_report.html
 
 # 3. Prompt 自动加固并查看 diff
@@ -176,7 +176,7 @@ python -m pytest tests -v
 ## 项目结构
 
 ```
-AXAI_Toolkit/
+AXAI_Toolkit_AIE3905_Lab/
 ├── README.md
 ├── LICENSE
 ├── MANIFEST.in
