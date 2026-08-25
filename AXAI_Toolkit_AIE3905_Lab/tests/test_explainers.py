@@ -100,8 +100,8 @@ def test_counterfactual(data):
 
 
 def test_counterfactual_accepts_nonzero_class_labels():
-    X, y, _ = load_demo_classification()
-    y = np.where(y == 0, 10, 20)
-    model = train_logistic_regression(X, y)
-    result = greedy_counterfactual(model, X[0], X, y, target_class=20)
+    X_train, X_test, y_train, _, _ = load_demo_classification()
+    y_train = np.where(y_train == 0, 10, 20)
+    model = train_logistic_regression(X_train, y_train)
+    result = greedy_counterfactual(model, X_test[0], X_train, y_train, target_class=20)
     assert result["target_class"] == 20
