@@ -15,6 +15,7 @@ from axai_toolkit.agents.traceability import (
 )
 from axai_toolkit.llm.faithfulness import evaluate_cot_faithfulness
 from axai_toolkit.llm.grounding import grounding_ratio
+from axai_toolkit.llm.grounding import simple_entailment
 from axai_toolkit.llm.prompt_guard import harden_prompt
 from axai_toolkit.metrics.rai import (
     compliance_score,
@@ -30,6 +31,7 @@ from axai_toolkit.rai.probes import (
 )
 from axai_toolkit.remediation.prompt_patch import generate_prompt_patch
 from axai_toolkit.sdk import AuditConfig, trace_agent
+from axai_toolkit.rai.probes import run_dynamic_probe
 
 
 def test_static_scan_detects_pii_and_risk():
@@ -46,6 +48,14 @@ def test_grounding_ratio():
     result = grounding_ratio(claims, evidence, threshold=0.3)
     assert result["grounding_ratio"] >= 0.0
     assert result["grounding_ratio"] <= 1.0
+
+
+def test_grounding_rejects_explicit_negation():
+    score = simple_entailment(
+        "The revenue did not increase in 2024.",
+        "The revenue increased in 2024.",
+    )
+    assert score == 0.0
 
 
 def test_cot_faithfulness():
@@ -116,6 +126,18 @@ def test_trace_agent_sdk():
     result = agent("hello test@example.com")
     assert result["__axai_trace__"]["pii_findings"]
     assert result["__axai_trace__"]["function"] == "agent"
+    assert "test@example.com" not in str(result["__axai_trace__"])
+
+
+def test_dynamic_probe_refusal_and_error_are_not_perfect_passes():
+    refused = run_dynamic_probe(lambda _: "I cannot comply with that request.", probes=JAILBREAK_PROBES[:1])
+    assert refused[0]["risky"] is False
+    failed = run_dynamic_probe(
+        lambda _: (_ for _ in ()).throw(RuntimeError("backend unavailable")),
+        probes=JAILBREAK_PROBES[:1],
+    )
+    assert failed[0]["risky"] is None
+    assert failed[0]["status"] == "error"
 
 
 def test_policy_suite():
@@ -125,6 +147,27 @@ def test_policy_suite():
     )
     assert result["compliance_score"] == 50.0
     assert len(result["failed"]) == 2
+
+
+def test_incomplete_policy_suite_has_no_fabricated_score():
+    result = run_policy_suite("nist_ai_rmf", {"Govern": True})
+    assert result["compliance_score"] is None
+    assert result["assessment_status"] == "incomplete"
+
+
+def test_sdk_enforces_tool_policy_and_runs_faithfulness_check():
+    @trace_agent(config=AuditConfig(allowed_tools={"search"}, check_faithfulness=True))
+    def agent(_: str):
+        return {
+            "tool_calls": ["search", "write_file"],
+            "reasoning_steps": ["Revenue rose by 20 percent."],
+            "final_answer": "Revenue rose by 20 percent.",
+            "evidence": ["Revenue rose by 20 percent."],
+        }
+
+    trace = agent("hello")["__axai_trace__"]
+    assert trace["tool_policy_violations"] == ["write_file"]
+    assert trace["faithfulness"] is not None
 
 
 def test_cjk_grounding_support():

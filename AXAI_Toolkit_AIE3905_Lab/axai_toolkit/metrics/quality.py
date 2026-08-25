@@ -54,8 +54,12 @@ def faithfulness(
     if X_mean is None:
         X_mean = np.zeros_like(instance)
     X_mean = np.asarray(X_mean, dtype=float).reshape(-1)
+    if len(X_mean) != len(instance):
+        raise ValueError("X_mean 的长度必须与 instance 一致")
+    if top_k < 1:
+        raise ValueError("top_k 必须至少为 1")
 
-    top_indices = np.argsort(np.abs(values))[::-1][:top_k]
+    top_indices = np.argsort(np.abs(values))[::-1][: min(top_k, len(instance))]
     modified = instance.copy()
     modified[top_indices] = X_mean[top_indices]
 

@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
+from .llm.faithfulness import evaluate_cot_faithfulness
 from .rai.probes import detect_pii
 
 # 简单 SQL 注入关键词
@@ -47,6 +48,43 @@ def _check_sql(text: str) -> list[str]:
     return [kw for kw in SQL_RISK_KEYWORDS if kw in lowered]
 
 
+def _redact_text(text: str) -> tuple[str, list[dict]]:
+    """Return a trace-safe representation and PII metadata without plaintext."""
+    findings = detect_pii(text)
+    redacted = text
+    for finding in reversed(findings):
+        redacted = (
+            redacted[: finding["start"]]
+            + f"[REDACTED:{finding['type']}]"
+            + redacted[finding["end"] :]
+        )
+    metadata = [{"type": item["type"]} for item in findings]
+    return redacted, metadata
+
+
+def _trace_value(value: Any) -> tuple[Any, list[dict]]:
+    if isinstance(value, str):
+        return _redact_text(value)
+    return value, []
+
+
+def _extract_tool_calls(result: Any) -> list[str]:
+    if not isinstance(result, dict):
+        return []
+    calls = result.get("tool_calls", [])
+    if isinstance(calls, (str, dict)):
+        calls = [calls]
+    names = []
+    for call in calls:
+        if isinstance(call, str):
+            names.append(call)
+        elif isinstance(call, dict):
+            name = call.get("name", call.get("tool", call.get("action")))
+            if isinstance(name, str):
+                names.append(name)
+    return names
+
+
 def trace_agent(config: Optional[AuditConfig] = None):
     """无侵入式装饰器：记录调用、检测 PII / SQL 风险，并附加审计轨迹。
 
@@ -70,20 +108,30 @@ def trace_agent(config: Optional[AuditConfig] = None):
                 "sql_risks": [],
                 "duration": 0.0,
                 "result_preview": None,
+                "tool_policy_violations": [],
+                "faithfulness": None,
             }
 
             # 仅记录可安全序列化的参数，避免记录敏感大对象
             for arg in args:
                 if isinstance(arg, (str, int, float, bool)):
-                    trace["args"].append(arg)
+                    safe_value, pii_metadata = _trace_value(arg)
+                    trace["args"].append(safe_value)
+                    if config.detect_pii:
+                        trace["pii_findings"].extend(pii_metadata)
             for key, value in kwargs.items():
                 if isinstance(value, (str, int, float, bool)):
-                    trace["kwargs"][key] = value
+                    safe_value, pii_metadata = _trace_value(value)
+                    trace["kwargs"][key] = safe_value
+                    if config.detect_pii:
+                        trace["pii_findings"].extend(pii_metadata)
 
             if config.detect_pii:
                 for value in [*trace["args"], *trace["kwargs"].values()]:
                     if isinstance(value, str):
-                        trace["pii_findings"].extend(detect_pii(value))
+                        # PII locations/values are intentionally omitted from
+                        # the trace so the audit system does not become a leak.
+                        pass
 
             if config.guard_sql:
                 for value in [*trace["args"], *trace["kwargs"].values()]:
@@ -92,7 +140,21 @@ def trace_agent(config: Optional[AuditConfig] = None):
 
             result = func(*args, **kwargs)
             trace["duration"] = time.time() - start
-            trace["result_preview"] = str(result)[:200]
+            trace["result_preview"], _ = _redact_text(str(result)[:200])
+
+            if config.allowed_tools is not None:
+                tool_calls = _extract_tool_calls(result)
+                trace["tool_policy_violations"] = [
+                    tool for tool in tool_calls if tool not in config.allowed_tools
+                ]
+
+            if config.check_faithfulness and isinstance(result, dict):
+                steps = result.get("reasoning_steps")
+                answer = result.get("final_answer", result.get("output"))
+                if isinstance(steps, list) and isinstance(answer, str):
+                    trace["faithfulness"] = evaluate_cot_faithfulness(
+                        [str(step) for step in steps], answer, evidence=result.get("evidence")
+                    )
 
             if config.log_trace:
                 # 将审计轨迹挂到函数返回值上，方便教学查看

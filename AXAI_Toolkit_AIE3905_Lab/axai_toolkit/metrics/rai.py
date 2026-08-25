@@ -46,18 +46,34 @@ def run_policy_suite(
     name : str
         政策套件名称，例如 "nist_ai_rmf"。
     check_results : dict[str, bool], optional
-        检查项名称到是否通过的映射；未提供时默认全部通过（用于演示）。
+        检查项名称到是否通过的映射。缺失的检查项不会被臆测为通过，且会令
+        总体合规分数标记为 ``None``，防止在没有证据时生成虚假的合规结论。
     """
     suite = get_policy_suite(name)
-    if check_results is None:
-        check_results = {item[0]: True for item in suite}
-    checks = [(item[0], check_results.get(item[0], False)) for item in suite]
+    check_results = check_results or {}
+    expected_names = [item[0] for item in suite]
+    unknown = sorted(set(check_results) - set(expected_names))
+    invalid = sorted(name for name, value in check_results.items() if not isinstance(value, bool))
+    if unknown:
+        raise ValueError(f"检查结果含未知项目: {unknown}")
+    if invalid:
+        raise TypeError(f"检查结果必须为 bool: {invalid}")
+
+    missing = [name for name in expected_names if name not in check_results]
+    checks = [(name, check_results.get(name, False)) for name in expected_names]
     result = compliance_score(checks)
+    if missing:
+        result["compliance_score"] = None
+        result["assessment_status"] = "incomplete"
+        result["summary"] = "检查证据不完整，未生成总体合规分数。"
+    else:
+        result["assessment_status"] = "assessed"
     result["suite"] = name
     result["items"] = [
-        {"name": item[0], "description": item[1], "passed": check_results.get(item[0], False)}
+        {"name": item[0], "description": item[1], "passed": check_results.get(item[0])}
         for item in suite
     ]
+    result["missing"] = missing
     return result
 
 

@@ -66,6 +66,7 @@ def partial_dependence(
     X: np.ndarray,
     feature_index: int,
     grid_points: int = 20,
+    class_index: Optional[int] = None,
 ) -> dict:
     """计算单个特征的部分依赖（Partial Dependence）。
 
@@ -76,21 +77,25 @@ def partial_dependence(
     if feature_index < 0 or feature_index >= X.shape[1]:
         raise ValueError("feature_index 超出范围")
 
+    if grid_points < 2:
+        raise ValueError("grid_points 必须至少为 2")
     values = np.linspace(X[:, feature_index].min(), X[:, feature_index].max(), grid_points)
     avg_preds = []
 
     if hasattr(model, "predict_proba"):
-        # 对二分类取正类概率；多分类取所有类别平均概率幅值
-        if hasattr(model, "classes_") and model.classes_.size == 2:
-            for v in values:
-                X_rep = X.copy()
-                X_rep[:, feature_index] = v
-                avg_preds.append(model.predict_proba(X_rep)[:, 1].mean())
-        else:
-            for v in values:
-                X_rep = X.copy()
-                X_rep[:, feature_index] = v
-                avg_preds.append(model.predict_proba(X_rep).mean())
+        probabilities = model.predict_proba(X)
+        n_classes = probabilities.shape[1]
+        # Averaging all class probabilities is identically 1 / K, so it cannot
+        # be a PDP.  Use an explicit class (positive class by default for
+        # binary classification, class 0 otherwise).
+        if class_index is None:
+            class_index = 1 if n_classes == 2 else 0
+        if not 0 <= class_index < n_classes:
+            raise ValueError("class_index 超出模型类别范围")
+        for v in values:
+            X_rep = X.copy()
+            X_rep[:, feature_index] = v
+            avg_preds.append(model.predict_proba(X_rep)[:, class_index].mean())
     else:
         for v in values:
             X_rep = X.copy()
@@ -101,4 +106,5 @@ def partial_dependence(
         "feature_index": feature_index,
         "values": values,
         "average_prediction": np.asarray(avg_preds),
+        "class_index": class_index,
     }

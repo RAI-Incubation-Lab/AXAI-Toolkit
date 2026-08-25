@@ -32,7 +32,8 @@ from .remediation.prompt_patch import apply_prompt_patch, generate_prompt_patch
 app = typer.Typer(help="AXAI-Toolkit: AI transparency, safety and compliance scanner.")
 console = Console()
 
-TEXT_SUFFIXES = {".py", ".txt", ".md", ".json", ".yaml", ".yml", ".toml", ".cfg", ".env"}
+TEXT_SUFFIXES = {".py", ".txt", ".md", ".json", ".yaml", ".yml", ".toml", ".cfg"}
+TEXT_FILENAMES = {".env"}
 
 
 def _iter_text_files(path: Path):
@@ -40,13 +41,18 @@ def _iter_text_files(path: Path):
         yield path
         return
     for p in sorted(path.rglob("*")):
-        if p.is_file() and p.suffix.lower() in TEXT_SUFFIXES:
+        if p.is_file() and (p.suffix.lower() in TEXT_SUFFIXES or p.name.lower() in TEXT_FILENAMES):
             yield p
 
 
 def _load_entry_function(entry_str: str):
     """从 'path/to/module.py:function_name' 动态加载用户函数。"""
-    path_part, func_name = entry_str.split(":", 1)
+    if ":" not in entry_str:
+        raise ValueError("入口格式必须是 'path/to/module.py:function_name'")
+    # rsplit keeps the drive colon in Windows absolute paths (C:\\...\\agent.py:run).
+    path_part, func_name = entry_str.rsplit(":", 1)
+    if not path_part or not func_name:
+        raise ValueError("入口格式必须包含模块路径和函数名")
     file_path = Path(path_part).resolve()
     if not file_path.exists():
         raise FileNotFoundError(f"Entry file not found: {file_path}")
@@ -194,10 +200,15 @@ def test(
         }
         for item in results
     ]
-    risky_count = sum(1 for item in results if item["risky"])
-    safety_score = max(0, 100 - 20 * risky_count)
+    risky_count = sum(1 for item in results if item["risky"] is True)
+    error_count = sum(1 for item in results if item["status"] == "error")
+    # An unavailable backend is an unassessed control, never a perfect pass.
+    safety_score = max(0, 100 - 20 * risky_count - 10 * error_count)
 
-    console.print(f"[bold]Dynamic test finished:[/bold] {len(results)} probes, {risky_count} risky.")
+    console.print(
+        f"[bold]Dynamic test finished:[/bold] {len(results)} probes, "
+        f"{risky_count} risky, {error_count} execution errors."
+    )
     if findings:
         console.print("[yellow]Findings:[/yellow]")
         for item in findings:

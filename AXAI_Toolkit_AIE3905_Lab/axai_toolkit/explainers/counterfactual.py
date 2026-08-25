@@ -2,17 +2,32 @@
 """反事实解释（Counterfactual Explanation）的简单贪心实现。"""
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 
 
-def _predict_class(model, x: np.ndarray) -> int:
+def _predict_class(model, x: np.ndarray) -> Any:
     if hasattr(model, "predict"):
-        return int(model.predict(x.reshape(1, -1))[0])
+        return model.predict(x.reshape(1, -1))[0]
     if hasattr(model, "predict_proba"):
-        return int(np.argmax(model.predict_proba(x.reshape(1, -1))[0]))
+        index = int(np.argmax(model.predict_proba(x.reshape(1, -1))[0]))
+        return model.classes_[index] if hasattr(model, "classes_") else index
     raise TypeError("模型必须具有 predict 或 predict_proba 方法")
+
+
+def _target_score(model, x: np.ndarray, target_class: Any) -> float:
+    """Return the target-class probability, or a class-match score as fallback."""
+    if hasattr(model, "predict_proba"):
+        probabilities = model.predict_proba(x.reshape(1, -1))[0]
+        if hasattr(model, "classes_"):
+            matches = np.where(np.asarray(model.classes_) == target_class)[0]
+            if len(matches) != 1:
+                raise ValueError("target_class 不在模型类别中")
+            return float(probabilities[int(matches[0])])
+        if isinstance(target_class, (int, np.integer)) and 0 <= target_class < len(probabilities):
+            return float(probabilities[int(target_class)])
+    return float(_predict_class(model, x) == target_class)
 
 
 def greedy_counterfactual(
@@ -20,7 +35,7 @@ def greedy_counterfactual(
     instance: np.ndarray,
     X: np.ndarray,
     y: np.ndarray,
-    target_class: Optional[int] = None,
+    target_class: Optional[Any] = None,
     max_changes: int = 5,
     steps_per_feature: int = 10,
     random_state: int = 42,
@@ -56,8 +71,12 @@ def greedy_counterfactual(
     y = np.asarray(y)
 
     current_class = _predict_class(model, instance)
+    class_labels = np.unique(y)
     if target_class is None:
-        target_class = 1 - current_class
+        alternatives = [label for label in class_labels if label != current_class]
+        if not alternatives:
+            raise ValueError("反事实解释需要至少两个类别")
+        target_class = alternatives[0]
     if target_class == current_class:
         return {
             "counterfactual": instance,
@@ -67,38 +86,36 @@ def greedy_counterfactual(
             "changed_features": [],
         }
 
-    rng = np.random.default_rng(random_state)
-    # 用各类别特征均值之差作为修改方向的参考
-    class_means = np.array([X[y == c].mean(axis=0) for c in np.unique(y)])
-    if target_class >= len(class_means):
+    if target_class not in class_labels:
         raise ValueError("target_class 超出数据集中的类别范围")
-    target_mean = class_means[target_class]
-
-    # 按当前样本与目标类别均值差异最大的特征依次尝试
-    diff = np.abs(target_mean - instance)
-    feature_order = np.argsort(diff)[::-1]
+    target_mean = X[y == target_class].mean(axis=0)
 
     candidate = instance.copy()
-    changed = []
-    for feature in feature_order:
-        if len(changed) >= max_changes:
+    if max_changes < 1 or steps_per_feature < 2:
+        raise ValueError("max_changes 必须至少为 1，steps_per_feature 必须至少为 2")
+    changed: list[int] = []
+    available = set(range(X.shape[1]))
+    # At every round retain the best *partial* change.  The previous
+    # implementation committed a change only after one feature alone flipped
+    # the class, so it could never find a valid multi-feature counterfactual.
+    for _ in range(max_changes):
+        if _predict_class(model, candidate) == target_class or not available:
             break
-        direction = np.sign(target_mean[feature] - instance[feature])
-        if direction == 0:
-            direction = 1
-        feature_std = X[:, feature].std() + 1e-8
         best_trial = None
-        for t in np.linspace(0, 2.0, steps_per_feature):
-            trial = candidate.copy()
-            trial[feature] = instance[feature] + direction * t * feature_std
-            if _predict_class(model, trial) == target_class:
-                best_trial = trial
-                break
-        if best_trial is not None:
-            candidate = best_trial
-            changed.append(int(feature))
-            if _predict_class(model, candidate) == target_class:
-                break
+        best_feature = None
+        best_score = _target_score(model, candidate, target_class)
+        for feature in available:
+            for fraction in np.linspace(0.0, 1.5, steps_per_feature)[1:]:
+                trial = candidate.copy()
+                trial[feature] = candidate[feature] + fraction * (target_mean[feature] - candidate[feature])
+                score = _target_score(model, trial, target_class)
+                if score > best_score + 1e-12:
+                    best_trial, best_feature, best_score = trial, feature, score
+        if best_trial is None:
+            break
+        candidate = best_trial
+        changed.append(int(best_feature))
+        available.remove(best_feature)
 
     found = _predict_class(model, candidate) == target_class
     return {

@@ -12,8 +12,9 @@ from typing import Callable, Optional
 
 import numpy as np
 
-# 支持中文连续片段、英文单词（长度 >= 2）与数字/下划线组合
-TOKEN_PATTERN = re.compile(r"[\u4e00-\u9fff]+|[a-zA-Z0-9_]{2,}")
+# Keep tokenisation consistent with grounding: individual Chinese characters
+# support paraphrases without silently treating whole sentences as one token.
+TOKEN_PATTERN = re.compile(r"[\u4e00-\u9fff]|[a-zA-Z0-9_]{2,}")
 
 
 def counterfactual_mutation(
@@ -66,6 +67,10 @@ def evaluate_cot_faithfulness(
     """
     if step_importance is None:
         step_importance = [1.0] * len(reasoning_steps)
+    if len(step_importance) != len(reasoning_steps):
+        raise ValueError("step_importance 的长度必须与 reasoning_steps 一致")
+    if any(weight < 0 for weight in step_importance):
+        raise ValueError("step_importance 不能包含负数")
 
     all_text = " ".join(reasoning_steps).lower()
     evidence_text = " ".join(evidence).lower() if evidence else ""
@@ -74,8 +79,13 @@ def evaluate_cot_faithfulness(
     if evidence_text:
         # 检查证据中的词是否在推理步骤中出现（简化）
         key_terms = set(TOKEN_PATTERN.findall(evidence_text))
-        matched = sum(1 for term in key_terms if term in all_text)
-        coverage = matched / max(1, len(key_terms))
+        matched_weight = sum(
+            weight
+            for step, weight in zip(reasoning_steps, step_importance)
+            if set(TOKEN_PATTERN.findall(step.lower())) & key_terms
+        )
+        total_weight = sum(step_importance)
+        coverage = matched_weight / total_weight if total_weight else 0.0
 
     # 简化一致性：最终答案中的词是否出现在推理步骤中
     answer_terms = set(TOKEN_PATTERN.findall(final_answer.lower()))
